@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>VINYL SNAKE — DJ Arcade</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --cyan: #00f0ff;
+    --magenta: #ff00d4;
+    --yellow: #ffea00;
+    --purple: #b300ff;
+    --ink: #e8e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,0,212,0.12), transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(0,240,255,0.12), transparent 50%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,240,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,212,0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+  }
+  header {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px 12px;
+    z-index: 1;
+  }
+  .title {
+    font-size: 1.3rem;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    text-shadow: 0 0 12px var(--cyan);
+  }
+  .back {
+    color: var(--magenta);
+    text-decoration: none;
+    text-shadow: 0 0 8px var(--magenta);
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+  }
+  .hud {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    z-index: 1;
+  }
+  .hud div { letter-spacing: 0.15em; }
+  .hud .score { color: var(--yellow); text-shadow: 0 0 8px var(--yellow); }
+  .hud .bpm { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); }
+  .hud .high { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 3 / 2;
+    border: 2px solid var(--cyan);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0,240,255,0.4), inset 0 0 30px rgba(0,240,255,0.05);
+    overflow: hidden;
+    background: rgba(0,0,10,0.6);
+    z-index: 1;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5,5,15,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 16px;
+    z-index: 2;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(255,0,212,0.4);
+  }
+  .overlay p { opacity: 0.85; line-height: 1.6; max-width: 480px; }
+  .overlay input {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--cyan);
+    color: var(--ink);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: center;
+    letter-spacing: 0.1em;
+    width: 220px;
+    outline: none;
+  }
+  .overlay input:focus { box-shadow: 0 0 20px var(--cyan); }
+  .btn {
+    padding: 12px 28px;
+    background: transparent;
+    border: 2px solid var(--magenta);
+    color: var(--magenta);
+    font-family: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    border-radius: 4px;
+    text-shadow: 0 0 10px var(--magenta);
+    box-shadow: 0 0 20px rgba(255,0,212,0.3), inset 0 0 20px rgba(255,0,212,0.05);
+    transition: all 0.15s;
+  }
+  .btn:hover, .btn:active { background: rgba(255,0,212,0.15); transform: scale(1.04); }
+  .leaderboard {
+    margin-top: 8px;
+    padding: 12px 20px;
+    border: 1px solid var(--purple);
+    border-radius: 6px;
+    background: rgba(20,5,40,0.6);
+    min-width: 280px;
+    max-width: 360px;
+    width: 100%;
+  }
+  .leaderboard h3 {
+    color: var(--purple);
+    text-shadow: 0 0 8px var(--purple);
+    margin-bottom: 8px;
+    letter-spacing: 0.2em;
+    font-size: 0.9rem;
+  }
+  .leaderboard ol { margin-left: 20px; font-size: 0.85rem; line-height: 1.7; }
+  .leaderboard li::marker { color: var(--yellow); }
+  .empty { opacity: 0.6; font-style: italic; font-size: 0.85rem; }
+  .controls-info {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.78rem;
+    opacity: 0.6;
+    letter-spacing: 0.15em;
+    z-index: 1;
+  }
+  /* Touch controls */
+  .touch-pad {
+    display: none;
+    margin-top: 16px;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px;
+    gap: 8px;
+    z-index: 1;
+  }
+  .touch-pad button {
+    background: rgba(0,240,255,0.08);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-size: 1.5rem;
+    border-radius: 6px;
+    text-shadow: 0 0 8px var(--cyan);
+    cursor: pointer;
+  }
+  .touch-pad .up    { grid-column: 2; grid-row: 1; }
+  .touch-pad .left  { grid-column: 1; grid-row: 2; }
+  .touch-pad .down  { grid-column: 2; grid-row: 2; }
+  .touch-pad .right { grid-column: 3; grid-row: 2; }
+  @media (pointer: coarse) {
+    .touch-pad { display: grid; }
+    .controls-info { display: none; }
+  }
+  .pulse-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transition: background 0.1s;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <a class="back" href="index.html">&lt; BACK</a>
+    <div class="title">VINYL SNAKE</div>
+    <div style="width: 60px"></div>
+  </header>
+
+  <div class="hud">
+    <div class="score">SCORE <span id="score">0</span></div>
+    <div class="bpm">BPM <span id="bpm">120</span></div>
+    <div class="high">HIGH <span id="high">0</span></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+    <div class="pulse-bg" id="pulse"></div>
+
+    <div class="overlay" id="start">
+      <h2>VINYL SNAKE</h2>
+      <p>Eat the spinning records. Don't bite your cable.<br/>Each pickup raises the BPM — and your speed.</p>
+      <input id="name" maxlength="12" placeholder="DJ NAME" />
+      <button class="btn" id="startBtn">DROP THE NEEDLE</button>
+    </div>
+
+    <div class="overlay hidden" id="over">
+      <h2 id="overTitle">NEEDLE SCRATCH</h2>
+      <p id="overSub">Score: <span id="finalScore">0</span></p>
+      <button class="btn" id="againBtn">GO AGAIN</button>
+    </div>
+  </div>
+
+  <div class="touch-pad" id="pad">
+    <button class="up"    data-dir="U">&uarr;</button>
+    <button class="left"  data-dir="L">&larr;</button>
+    <button class="down"  data-dir="D">&darr;</button>
+    <button class="right" data-dir="R">&rarr;</button>
+  </div>
+
+  <div class="controls-info">// ARROWS or WASD to steer · SPACE to pause //</div>
+
+  <div class="leaderboard">
+    <h3>// TOP DJS</h3>
+    <ol id="board"></ol>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const COLS = 30, ROWS = 20;
+
+  const startOverlay = document.getElementById('start');
+  const overOverlay  = document.getElementById('over');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const nameInput = document.getElementById('name');
+  const scoreEl = document.getElementById('score');
+  const bpmEl   = document.getElementById('bpm');
+  const highEl  = document.getElementById('high');
+  const finalScoreEl = document.getElementById('finalScore');
+  const overTitle = document.getElementById('overTitle');
+  const pulse = document.getElementById('pulse');
+  const boardEl = document.getElementById('board');
+
+  let cellW, cellH;
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(r.width);
+    canvas.height = Math.floor(r.height);
+    cellW = canvas.width / COLS;
+    cellH = canvas.height / ROWS;
+  }
+  window.addEventListener('resize', resize);
+
+  // ----- Audio -----
+  let audio;
+  function audioCtx() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24]; // pentatonic-ish
+  function tone(freq, dur = 0.12, type = 'square', gain = 0.18) {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.value = 0;
+    g.gain.linearRampToValueAtTime(gain, a.currentTime + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    osc.connect(g).connect(a.destination);
+    osc.start();
+    osc.stop(a.currentTime + dur + 0.02);
+  }
+  function eatSound(score) {
+    const i = SCALE[score % SCALE.length];
+    const freq = 220 * Math.pow(2, i / 12);
+    tone(freq, 0.14, 'square', 0.18);
+    setTimeout(() => tone(freq * 2, 0.08, 'triangle', 0.1), 40);
+  }
+  function kickSound() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, a.currentTime + 0.12);
+    g.gain.setValueAtTime(0.3, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.18);
+    osc.connect(g).connect(a.destination);
+    osc.start();
+    osc.stop(a.currentTime + 0.2);
+  }
+  function scratchSound() {
+    const a = audioCtx();
+    const buf = a.createBuffer(1, a.sampleRate * 0.6, a.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const filter = a.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2000, a.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, a.currentTime + 0.5);
+    const g = a.createGain();
+    g.gain.value = 0.2;
+    src.connect(filter).connect(g).connect(a.destination);
+    src.start();
+  }
+  function goldSound() {
+    [440, 660, 880, 1320].forEach((f, i) =>
+      setTimeout(() => tone(f, 0.18, 'triangle', 0.15), i * 70));
+  }
+
+  // ----- Game state -----
+  let snake, dir, nextDir, food, score, alive, lastStep, stepInterval, beatInterval, lastBeat, paused, playerName;
+
+  function reset() {
+    snake = [{x: 8, y: 10}, {x: 7, y: 10}, {x: 6, y: 10}];
+    dir = 'R'; nextDir = 'R';
+    score = 0; alive = true; paused = false;
+    lastStep = 0; lastBeat = 0;
+    stepInterval = 140; // ms per move
+    beatInterval = 500; // 120 BPM
+    spawnFood();
+    updateHud();
+  }
+
+  function spawnFood() {
+    while (true) {
+      const x = Math.floor(Math.random() * COLS);
+      const y = Math.floor(Math.random() * ROWS);
+      if (snake.some(s => s.x === x && s.y === y)) continue;
+      // 70% vinyl (1pt), 22% cassette (3pt), 8% gold (10pt + slow)
+      const r = Math.random();
+      const type = r < 0.7 ? 'vinyl' : r < 0.92 ? 'cassette' : 'gold';
+      food = { x, y, type, born: performance.now() };
+      return;
+    }
+  }
+
+  function step() {
+    dir = nextDir;
+    const head = snake[0];
+    const nh = { x: head.x, y: head.y };
+    if (dir === 'U') nh.y--;
+    else if (dir === 'D') nh.y++;
+    else if (dir === 'L') nh.x--;
+    else nh.x++;
+
+    // Wall collision
+    if (nh.x < 0 || nh.x >= COLS || nh.y < 0 || nh.y >= ROWS) return die();
+    // Self collision
+    if (snake.some((s, i) => i < snake.length - 1 && s.x === nh.x && s.y === nh.y)) return die();
+
+    snake.unshift(nh);
+
+    if (nh.x === food.x && nh.y === food.y) {
+      let pts = food.type === 'vinyl' ? 1 : food.type === 'cassette' ? 3 : 10;
+      score += pts;
+      if (food.type === 'gold') {
+        goldSound();
+        stepInterval = Math.min(stepInterval + 30, 200); // brief slow-down
+      } else {
+        eatSound(score);
+        stepInterval = Math.max(60, 140 - score * 1.2);
+      }
+      beatInterval = Math.max(220, 500 - score * 4);
+      // grow extra for cassette/gold
+      if (food.type === 'cassette') snake.push({...snake[snake.length-1]});
+      if (food.type === 'gold') { snake.push({...snake[snake.length-1]}); snake.push({...snake[snake.length-1]}); }
+      spawnFood();
+      updateHud();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function die() {
+    alive = false;
+    scratchSound();
+    saveScore(playerName, score);
+    finalScoreEl.textContent = score;
+    overTitle.textContent = score >= getHigh() ? 'NEW HIGH SCORE' : 'NEEDLE SCRATCH';
+    overOverlay.classList.remove('hidden');
+    renderBoard();
+  }
+
+  function updateHud() {
+    scoreEl.textContent = score;
+    bpmEl.textContent = Math.round(60000 / beatInterval);
+    highEl.textContent = getHigh();
+  }
+
+  // ----- Drawing -----
+  function draw(now) {
+    ctx.fillStyle = 'rgba(5, 5, 15, 0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // grid lines
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.07)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < COLS; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * cellW, 0);
+      ctx.lineTo(i * cellW, canvas.height);
+      ctx.stroke();
+    }
+    for (let i = 1; i < ROWS; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, i * cellH);
+      ctx.lineTo(canvas.width, i * cellH);
+      ctx.stroke();
+    }
+
+    // food
+    drawFood(food, now);
+
+    // snake
+    snake.forEach((s, i) => {
+      const t = i / snake.length;
+      const r = Math.round(0   * (1-t) + 255 * t);
+      const g = Math.round(240 * (1-t) +   0 * t);
+      const b = Math.round(255 * (1-t) + 212 * t);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.shadowColor = `rgb(${r},${g},${b})`;
+      ctx.shadowBlur = i === 0 ? 18 : 10;
+      const pad = i === 0 ? 1 : 2;
+      ctx.fillRect(s.x * cellW + pad, s.y * cellH + pad, cellW - pad*2, cellH - pad*2);
+    });
+    ctx.shadowBlur = 0;
+  }
+
+  function drawFood(f, now) {
+    const cx = f.x * cellW + cellW/2;
+    const cy = f.y * cellH + cellH/2;
+    const radius = Math.min(cellW, cellH) / 2 - 3;
+    const wob = 1 + Math.sin((now - f.born) / 150) * 0.06;
+
+    if (f.type === 'vinyl') {
+      ctx.shadowColor = '#b300ff';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#1a0030';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * wob, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(179,0,255,0.6)';
+      ctx.lineWidth = 1;
+      for (let r = radius * 0.4; r < radius; r += 2) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#ff00d4';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (f.type === 'cassette') {
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#001a22';
+      ctx.fillRect(cx - radius, cy - radius * 0.7, radius*2, radius*1.4);
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(cx - radius * 0.4, cy, radius * 0.35, 0, Math.PI*2);
+      ctx.arc(cx + radius * 0.4, cy, radius * 0.35, 0, Math.PI*2);
+      ctx.fill();
+    } else {
+      // golden record
+      ctx.shadowColor = '#ffea00';
+      ctx.shadowBlur = 22;
+      const grad = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius);
+      grad.addColorStop(0, '#fff7a0');
+      grad.addColorStop(0.5, '#ffea00');
+      grad.addColorStop(1, '#b39300');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * wob, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a0030';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ----- Loop -----
+  function loop(now) {
+    if (alive && !paused) {
+      if (now - lastStep >= stepInterval) {
+        lastStep = now;
+        step();
+      }
+      if (now - lastBeat >= beatInterval) {
+        lastBeat = now;
+        kickSound();
+        pulse.style.background = 'radial-gradient(ellipse at center, rgba(255,0,212,0.18), transparent 70%)';
+        setTimeout(() => pulse.style.background = 'transparent', 100);
+      }
+    }
+    draw(now);
+    requestAnimationFrame(loop);
+  }
+
+  // ----- Input -----
+  function setDir(d) {
+    if (!alive) return;
+    if (d === 'U' && dir !== 'D') nextDir = 'U';
+    else if (d === 'D' && dir !== 'U') nextDir = 'D';
+    else if (d === 'L' && dir !== 'R') nextDir = 'L';
+    else if (d === 'R' && dir !== 'L') nextDir = 'R';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'arrowup' || k === 'w') setDir('U');
+    else if (k === 'arrowdown' || k === 's') setDir('D');
+    else if (k === 'arrowleft' || k === 'a') setDir('L');
+    else if (k === 'arrowright' || k === 'd') setDir('R');
+    else if (k === ' ') paused = !paused;
+  });
+
+  document.querySelectorAll('#pad button').forEach(btn => {
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); setDir(btn.dataset.dir); }, {passive: false});
+    btn.addEventListener('click', () => setDir(btn.dataset.dir));
+  });
+
+  // Swipe
+  let touchStart = null;
+  canvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, {passive: true});
+  canvas.addEventListener('touchend', (e) => {
+    if (!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 'R' : 'L');
+    else setDir(dy > 0 ? 'D' : 'U');
+    touchStart = null;
+  }, {passive: true});
+
+  // ----- Leaderboard -----
+  const KEY = 'dj_snake_board';
+  function getBoard() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch { return []; }
+  }
+  function saveScore(name, score) {
+    const board = getBoard();
+    board.push({ name: name || 'ANON', score, date: Date.now() });
+    board.sort((a, b) => b.score - a.score);
+    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 10)));
+  }
+  function getHigh() {
+    const board = getBoard();
+    return board.length ? board[0].score : 0;
+  }
+  function renderBoard() {
+    const board = getBoard();
+    if (!board.length) { boardEl.innerHTML = '<li class="empty">No high scores yet — be the first.</li>'; return; }
+    boardEl.innerHTML = board.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.score}</b></li>`).join('');
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ----- Start / restart -----
+  function startGame() {
+    audioCtx();
+    playerName = (nameInput.value || 'ANON').toUpperCase().trim().slice(0, 12);
+    startOverlay.classList.add('hidden');
+    overOverlay.classList.add('hidden');
+    resize();
+    reset();
+    requestAnimationFrame(loop);
+  }
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', () => {
+    overOverlay.classList.add('hidden');
+    reset();
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
+
+  // initial paint
+  resize();
+  renderBoard();
+  highEl.textContent = getHigh();
+})();
+</script>
+</body>
+</html>

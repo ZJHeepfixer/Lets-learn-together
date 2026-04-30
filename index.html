@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>DJ ARCADE — Drop the Beat, Beat the High Score</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --cyan: #00f0ff;
+    --magenta: #ff00d4;
+    --yellow: #ffea00;
+    --purple: #b300ff;
+    --ink: #e8e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Courier New', monospace;
+    overflow-x: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,0,212,0.15), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(0,240,255,0.15), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(179,0,255,0.08), transparent 70%),
+      var(--bg);
+    min-height: 100vh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Synthwave grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,240,255,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,212,0.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+    animation: gridShift 20s linear infinite;
+  }
+  @keyframes gridShift {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 40px 40px, -40px 40px; }
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1100px; width: 100%; }
+  h1 {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    text-align: center;
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--yellow), var(--cyan));
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: hue 4s linear infinite;
+    text-shadow: 0 0 40px rgba(255,0,212,0.5);
+    margin-bottom: 8px;
+  }
+  @keyframes hue { to { background-position: 300% center; } }
+  .tagline {
+    text-align: center;
+    color: var(--cyan);
+    font-size: 0.95rem;
+    letter-spacing: 0.4em;
+    margin-bottom: 40px;
+    text-shadow: 0 0 10px var(--cyan);
+  }
+  .games {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .game-card {
+    position: relative;
+    padding: 28px;
+    border: 2px solid var(--cyan);
+    border-radius: 12px;
+    background: rgba(10,10,30,0.6);
+    box-shadow: 0 0 30px rgba(0,240,255,0.3), inset 0 0 30px rgba(0,240,255,0.05);
+    text-decoration: none;
+    color: var(--ink);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    display: block;
+  }
+  .game-card.magenta { border-color: var(--magenta); box-shadow: 0 0 30px rgba(255,0,212,0.3), inset 0 0 30px rgba(255,0,212,0.05); }
+  .game-card:hover { transform: translateY(-4px) scale(1.02); }
+  .game-card:hover { box-shadow: 0 0 60px rgba(0,240,255,0.6), inset 0 0 30px rgba(0,240,255,0.1); }
+  .game-card.magenta:hover { box-shadow: 0 0 60px rgba(255,0,212,0.6), inset 0 0 30px rgba(255,0,212,0.1); }
+  .game-card h2 {
+    font-size: 2rem;
+    color: var(--cyan);
+    text-shadow: 0 0 15px var(--cyan);
+    margin-bottom: 12px;
+    letter-spacing: 0.1em;
+  }
+  .game-card.magenta h2 { color: var(--magenta); text-shadow: 0 0 15px var(--magenta); }
+  .game-card p { line-height: 1.6; opacity: 0.85; margin-bottom: 16px; font-size: 0.95rem; }
+  .play-btn {
+    display: inline-block;
+    padding: 10px 22px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    color: var(--yellow);
+    text-shadow: 0 0 8px var(--yellow);
+    letter-spacing: 0.2em;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+  .icon {
+    font-size: 3rem;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  .ideas {
+    border: 1px dashed var(--purple);
+    border-radius: 12px;
+    padding: 24px;
+    background: rgba(20,5,40,0.5);
+    margin-top: 24px;
+  }
+  .ideas h3 {
+    color: var(--purple);
+    text-shadow: 0 0 10px var(--purple);
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+  }
+  .ideas ol { margin-left: 24px; line-height: 1.8; opacity: 0.9; font-size: 0.9rem; }
+  .ideas li::marker { color: var(--magenta); }
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    opacity: 0.5;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+  }
+  /* Pulsing record */
+  .record {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--yellow) 0 6px, #111 6px 8px, #222 8px 100%);
+    box-shadow: 0 0 15px var(--yellow);
+    vertical-align: middle;
+    margin: 0 6px;
+    animation: spin 3s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>DJ ARCADE</h1>
+    <div class="tagline">DROP <span class="record"></span> THE <span class="record"></span> BEAT</div>
+
+    <div class="games">
+      <a class="game-card" href="snake.html">
+        <div class="icon" style="color: var(--cyan)">&#9836;</div>
+        <h2>VINYL SNAKE</h2>
+        <p>Classic snake — but you're a glowing turntable cable. Devour vinyl records, cassettes &amp; golden 12"s. Speed ramps up with the BPM. Don't bite your own cable.</p>
+        <span class="play-btn">&gt; PLAY</span>
+      </a>
+
+      <a class="game-card magenta" href="invaders.html">
+        <div class="icon" style="color: var(--magenta)">&#9835;</div>
+        <h2>BASS INVADERS</h2>
+        <p>Space Invaders for the dancefloor. Pilot a turntable, blast soundwaves at descending broken vinyl, headphones &amp; subwoofers. Save the rave.</p>
+        <span class="play-btn">&gt; PLAY</span>
+      </a>
+    </div>
+
+    <div class="ideas">
+      <h3>// MORE PARTY GAME IDEAS</h3>
+      <ol>
+        <li><b>Beat Battle</b> — tap along to the beat, best rhythm consistency wins.</li>
+        <li><b>Reaction Drop</b> — wait for THE DROP cue, fastest reflex scores. False starts disqualify.</li>
+        <li><b>BPM Guesser</b> — match a synthesized click track by tapping. Closest BPM wins.</li>
+        <li><b>Name That Drop</b> — DJ plays 3-second snippets, first correct buzz scores.</li>
+        <li><b>Crowd Hype Meter</b> — phone mics measure cheering volume.</li>
+        <li><b>Genre Roulette</b> — wheel spins a constraint, DJ has to mix to it.</li>
+        <li><b>Build-Up Predictor</b> — tap when you think the drop is coming.</li>
+        <li><b>Lyric Finish</b> — show the first half of a lyric, complete the next line.</li>
+        <li><b>Last Beat Standing</b> — survival round, bad timing eliminates players.</li>
+        <li><b>Flashlight Wave</b> — coordinated phone-flashlight wave around the room.</li>
+        <li><b>Genre Telephone</b> — each player adds a constraint, DJ must satisfy them all.</li>
+        <li><b>Mash-Up Mayhem</b> — DJ overlays two tracks, first to name both wins.</li>
+      </ol>
+    </div>
+
+    <div class="footer">// PRESS ANY BUTTON TO BEGIN //</div>
+  </div>
+</body>
+</html>

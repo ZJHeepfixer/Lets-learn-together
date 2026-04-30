@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>BASS INVADERS — DJ Arcade</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --cyan: #00f0ff;
+    --magenta: #ff00d4;
+    --yellow: #ffea00;
+    --purple: #b300ff;
+    --ink: #e8e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 100%, rgba(255,0,212,0.18), transparent 60%),
+      radial-gradient(ellipse at 30% 0%, rgba(0,240,255,0.12), transparent 50%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,0,212,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,240,255,0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+  }
+  header {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px 12px;
+    z-index: 1;
+  }
+  .title {
+    font-size: 1.3rem;
+    letter-spacing: 0.3em;
+    color: var(--magenta);
+    text-shadow: 0 0 12px var(--magenta);
+  }
+  .back {
+    color: var(--cyan);
+    text-decoration: none;
+    text-shadow: 0 0 8px var(--cyan);
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+  }
+  .hud {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    z-index: 1;
+  }
+  .hud div { letter-spacing: 0.15em; }
+  .hud .score { color: var(--yellow); text-shadow: 0 0 8px var(--yellow); }
+  .hud .lives { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); }
+  .hud .wave  { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .hud .high  { color: var(--purple); text-shadow: 0 0 8px var(--purple); }
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 3 / 4;
+    max-height: 75vh;
+    border: 2px solid var(--magenta);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(255,0,212,0.4), inset 0 0 30px rgba(255,0,212,0.05);
+    overflow: hidden;
+    background: rgba(0,0,10,0.6);
+    z-index: 1;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5,5,15,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 16px;
+    z-index: 2;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--magenta), var(--cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(255,0,212,0.4);
+  }
+  .overlay p { opacity: 0.85; line-height: 1.6; max-width: 480px; }
+  .overlay input {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--magenta);
+    color: var(--ink);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: center;
+    letter-spacing: 0.1em;
+    width: 220px;
+    outline: none;
+  }
+  .overlay input:focus { box-shadow: 0 0 20px var(--magenta); }
+  .btn {
+    padding: 12px 28px;
+    background: transparent;
+    border: 2px solid var(--cyan);
+    color: var(--cyan);
+    font-family: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    border-radius: 4px;
+    text-shadow: 0 0 10px var(--cyan);
+    box-shadow: 0 0 20px rgba(0,240,255,0.3), inset 0 0 20px rgba(0,240,255,0.05);
+    transition: all 0.15s;
+  }
+  .btn:hover, .btn:active { background: rgba(0,240,255,0.15); transform: scale(1.04); }
+  .leaderboard {
+    margin-top: 8px;
+    padding: 12px 20px;
+    border: 1px solid var(--purple);
+    border-radius: 6px;
+    background: rgba(20,5,40,0.6);
+    min-width: 280px;
+    max-width: 360px;
+    width: 100%;
+  }
+  .leaderboard h3 {
+    color: var(--purple);
+    text-shadow: 0 0 8px var(--purple);
+    margin-bottom: 8px;
+    letter-spacing: 0.2em;
+    font-size: 0.9rem;
+  }
+  .leaderboard ol { margin-left: 20px; font-size: 0.85rem; line-height: 1.7; }
+  .leaderboard li::marker { color: var(--yellow); }
+  .empty { opacity: 0.6; font-style: italic; font-size: 0.85rem; }
+  .controls-info {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.78rem;
+    opacity: 0.6;
+    letter-spacing: 0.15em;
+    z-index: 1;
+  }
+  .touch-controls {
+    display: none;
+    margin-top: 16px;
+    gap: 16px;
+    align-items: center;
+    z-index: 1;
+  }
+  .touch-controls button {
+    width: 64px;
+    height: 64px;
+    background: rgba(0,240,255,0.08);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-size: 1.6rem;
+    border-radius: 8px;
+    text-shadow: 0 0 8px var(--cyan);
+    cursor: pointer;
+  }
+  .touch-controls .fire {
+    width: 80px;
+    height: 64px;
+    background: rgba(255,0,212,0.1);
+    border-color: var(--magenta);
+    color: var(--magenta);
+    text-shadow: 0 0 8px var(--magenta);
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+  }
+  @media (pointer: coarse) {
+    .touch-controls { display: flex; }
+    .controls-info { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <a class="back" href="index.html">&lt; BACK</a>
+    <div class="title">BASS INVADERS</div>
+    <div style="width: 60px"></div>
+  </header>
+
+  <div class="hud">
+    <div class="score">SCORE <span id="score">0</span></div>
+    <div class="wave">WAVE <span id="wave">1</span></div>
+    <div class="lives">&#9835; <span id="lives">3</span></div>
+    <div class="high">HIGH <span id="high">0</span></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="start">
+      <h2>BASS INVADERS</h2>
+      <p>Save the rave from descending dead media. Pilot the turntable. Blast soundwaves. Don't let them touch the floor.</p>
+      <input id="name" maxlength="12" placeholder="DJ NAME" />
+      <button class="btn" id="startBtn">DROP IN</button>
+    </div>
+
+    <div class="overlay hidden" id="over">
+      <h2 id="overTitle">RAVE OVER</h2>
+      <p id="overSub">Score: <span id="finalScore">0</span></p>
+      <button class="btn" id="againBtn">ENCORE</button>
+    </div>
+  </div>
+
+  <div class="touch-controls" id="touch">
+    <button id="tLeft">&larr;</button>
+    <button class="fire" id="tFire">FIRE</button>
+    <button id="tRight">&rarr;</button>
+  </div>
+
+  <div class="controls-info">// LEFT/RIGHT or A/D to move · SPACE to fire //</div>
+
+  <div class="leaderboard">
+    <h3>// TOP DJS</h3>
+    <ol id="board"></ol>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0;
+
+  const startOverlay = document.getElementById('start');
+  const overOverlay  = document.getElementById('over');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const nameInput = document.getElementById('name');
+  const scoreEl = document.getElementById('score');
+  const waveEl  = document.getElementById('wave');
+  const livesEl = document.getElementById('lives');
+  const highEl  = document.getElementById('high');
+  const finalScoreEl = document.getElementById('finalScore');
+  const overTitle = document.getElementById('overTitle');
+  const boardEl = document.getElementById('board');
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(r.width);
+    canvas.height = Math.floor(r.height);
+    W = canvas.width; H = canvas.height;
+    if (player) player.y = H - 60;
+  }
+  window.addEventListener('resize', resize);
+
+  // ---- Audio ----
+  let audio;
+  function audioCtx() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function laser() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(900, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(180, a.currentTime + 0.15);
+    g.gain.setValueAtTime(0.12, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.18);
+    osc.connect(g).connect(a.destination);
+    osc.start();
+    osc.stop(a.currentTime + 0.2);
+  }
+  function explode() {
+    const a = audioCtx();
+    const buf = a.createBuffer(1, a.sampleRate * 0.3, a.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const filter = a.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 800;
+    const g = a.createGain();
+    g.gain.value = 0.25;
+    src.connect(filter).connect(g).connect(a.destination);
+    src.start();
+  }
+  function kick() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, a.currentTime + 0.12);
+    g.gain.setValueAtTime(0.25, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.15);
+    osc.connect(g).connect(a.destination);
+    osc.start();
+    osc.stop(a.currentTime + 0.16);
+  }
+  function hurtSound() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(60, a.currentTime + 0.4);
+    g.gain.setValueAtTime(0.2, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.45);
+    osc.connect(g).connect(a.destination);
+    osc.start();
+    osc.stop(a.currentTime + 0.5);
+  }
+  function waveCleared() {
+    [330, 440, 554, 660].forEach((f, i) =>
+      setTimeout(() => {
+        const a = audioCtx();
+        const osc = a.createOscillator();
+        const g = a.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = f;
+        g.gain.setValueAtTime(0.15, a.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.25);
+        osc.connect(g).connect(a.destination);
+        osc.start();
+        osc.stop(a.currentTime + 0.3);
+      }, i * 90));
+  }
+
+  // ---- State ----
+  let player, bullets, enemyBullets, enemies, particles, wave, score, lives, alive, paused, playerName, lastShot, beatTimer;
+  let keys = { left: false, right: false, fire: false };
+
+  function reset() {
+    player = { x: 0, y: 0, w: 56, h: 24, speed: 320 };
+    resize();
+    player.x = W / 2 - player.w / 2;
+    bullets = [];
+    enemyBullets = [];
+    particles = [];
+    enemies = [];
+    score = 0;
+    lives = 3;
+    wave = 1;
+    alive = true;
+    paused = false;
+    lastShot = 0;
+    beatTimer = 0;
+    spawnWave();
+    updateHud();
+  }
+
+  function spawnWave() {
+    enemies = [];
+    const cols = 8;
+    const rows = Math.min(3 + Math.floor(wave / 2), 6);
+    const spacingX = Math.min(60, (W - 80) / cols);
+    const spacingY = 44;
+    const offsetX = (W - spacingX * cols) / 2 + spacingX / 2;
+    const offsetY = 60;
+    const types = ['vinyl', 'cassette', 'headphones', 'speaker'];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const type = types[r % types.length];
+        enemies.push({
+          x: offsetX + c * spacingX,
+          y: offsetY + r * spacingY,
+          w: 32, h: 26,
+          type,
+          dir: 1,
+          alive: true,
+          hp: type === 'speaker' ? 2 : 1,
+          row: r
+        });
+      }
+    }
+  }
+
+  // ---- Update ----
+  let lastTime = 0;
+  function update(dt, now) {
+    // Player
+    if (keys.left)  player.x -= player.speed * dt;
+    if (keys.right) player.x += player.speed * dt;
+    player.x = Math.max(8, Math.min(W - player.w - 8, player.x));
+
+    if (keys.fire && now - lastShot > 280) {
+      lastShot = now;
+      bullets.push({ x: player.x + player.w/2 - 2, y: player.y - 8, w: 4, h: 14, vy: -560 });
+      laser();
+    }
+
+    // Bullets
+    bullets = bullets.filter(b => {
+      b.y += b.vy * dt;
+      return b.y > -20;
+    });
+    enemyBullets = enemyBullets.filter(b => {
+      b.y += b.vy * dt;
+      b.phase += dt * 8;
+      return b.y < H + 20;
+    });
+
+    // Enemies — classic side-step descent
+    let leftMost = Infinity, rightMost = -Infinity, lowMost = -Infinity;
+    enemies.forEach(e => {
+      if (!e.alive) return;
+      if (e.x < leftMost) leftMost = e.x;
+      if (e.x + e.w > rightMost) rightMost = e.x + e.w;
+      if (e.y + e.h > lowMost) lowMost = e.y + e.h;
+    });
+    const liveCount = enemies.filter(e => e.alive).length;
+    const speed = 18 + wave * 8 + (1 - liveCount / Math.max(1, enemies.length)) * 80;
+    let dirChange = false;
+    if (rightMost > W - 12 && enemies[0] && enemies.find(e => e.alive && e.dir === 1)) dirChange = true;
+    if (leftMost < 12 && enemies.find(e => e.alive && e.dir === -1)) dirChange = true;
+    enemies.forEach(e => {
+      if (!e.alive) return;
+      if (dirChange) { e.dir *= -1; e.y += 14; }
+      e.x += e.dir * speed * dt;
+    });
+
+    // Enemy fire
+    if (Math.random() < 0.012 + wave * 0.004) {
+      const shooters = enemies.filter(e => e.alive);
+      if (shooters.length) {
+        const shooter = shooters[Math.floor(Math.random() * shooters.length)];
+        enemyBullets.push({
+          x: shooter.x + shooter.w/2 - 3,
+          y: shooter.y + shooter.h,
+          w: 6, h: 12,
+          vy: 220 + wave * 20,
+          phase: 0
+        });
+      }
+    }
+
+    // Player bullets vs enemies
+    bullets.forEach(b => {
+      enemies.forEach(e => {
+        if (!e.alive) return;
+        if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
+          b.y = -100;
+          e.hp--;
+          if (e.hp <= 0) {
+            e.alive = false;
+            const pts = e.type === 'speaker' ? 50 : e.type === 'headphones' ? 30 : e.type === 'cassette' ? 20 : 10;
+            score += pts;
+            burst(e.x + e.w/2, e.y + e.h/2, e.type);
+            explode();
+          } else {
+            burst(e.x + e.w/2, e.y + e.h/2, e.type, 6);
+          }
+        }
+      });
+    });
+
+    // Enemy bullets vs player
+    enemyBullets.forEach(b => {
+      if (b.x < player.x + player.w && b.x + b.w > player.x && b.y < player.y + player.h && b.y + b.h > player.y) {
+        b.y = H + 100;
+        lives--;
+        hurtSound();
+        burst(player.x + player.w/2, player.y + player.h/2, 'player', 20);
+        if (lives <= 0) return gameOver();
+      }
+    });
+
+    // Enemy reaches floor / player
+    if (lowMost >= player.y) gameOver();
+
+    // Particles
+    particles = particles.filter(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      p.vy += 200 * dt;
+      return p.life > 0;
+    });
+
+    // Wave clear
+    if (liveCount === 0) {
+      wave++;
+      waveCleared();
+      spawnWave();
+    }
+
+    // Beat
+    beatTimer -= dt;
+    if (beatTimer <= 0) {
+      beatTimer = 0.5; // 120 BPM
+      kick();
+    }
+
+    updateHud();
+  }
+
+  function burst(x, y, type, n = 14) {
+    const colors = {
+      vinyl: ['#b300ff', '#ff00d4'],
+      cassette: ['#00f0ff', '#80f8ff'],
+      headphones: ['#ffea00', '#ff00d4'],
+      speaker: ['#ff00d4', '#ffea00'],
+      player: ['#00f0ff', '#ff00d4', '#ffea00']
+    };
+    const palette = colors[type] || colors.vinyl;
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 80 + Math.random() * 220;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 60,
+        life: 0.4 + Math.random() * 0.4,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        size: 2 + Math.random() * 3
+      });
+    }
+  }
+
+  function gameOver() {
+    if (!alive) return;
+    alive = false;
+    saveScore(playerName, score);
+    finalScoreEl.textContent = score;
+    overTitle.textContent = score >= getHigh() ? 'NEW HIGH SCORE' : 'RAVE OVER';
+    overOverlay.classList.remove('hidden');
+    renderBoard();
+  }
+
+  function updateHud() {
+    scoreEl.textContent = score;
+    waveEl.textContent = wave;
+    livesEl.textContent = lives;
+    highEl.textContent = getHigh();
+  }
+
+  // ---- Drawing ----
+  function draw(now) {
+    ctx.fillStyle = 'rgba(5, 5, 15, 0.7)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Floor line
+    const beatPulse = Math.sin(now / 80) * 0.5 + 0.5;
+    ctx.strokeStyle = `rgba(255, 0, 212, ${0.3 + beatPulse * 0.4})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, player.y + player.h + 8);
+    ctx.lineTo(W, player.y + player.h + 8);
+    ctx.stroke();
+
+    // Player (turntable)
+    drawTurntable(player.x, player.y, player.w, player.h, now);
+
+    // Bullets (sound waves)
+    bullets.forEach(b => {
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(b.x + 1, b.y, b.w - 2, b.h - 4);
+    });
+    ctx.shadowBlur = 0;
+
+    // Enemy bullets (static blobs)
+    enemyBullets.forEach(b => {
+      ctx.shadowColor = '#ff00d4';
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = '#ff00d4';
+      const sway = Math.sin(b.phase) * 2;
+      ctx.fillRect(b.x + sway, b.y, b.w, b.h);
+    });
+    ctx.shadowBlur = 0;
+
+    // Enemies
+    enemies.forEach(e => {
+      if (!e.alive) return;
+      drawEnemy(e, now);
+    });
+
+    // Particles
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  function drawTurntable(x, y, w, h, now) {
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    // base
+    ctx.fillStyle = '#0a1a30';
+    ctx.fillRect(x, y + h * 0.55, w, h * 0.45);
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y + h * 0.55, w, h * 0.45);
+    // platter
+    ctx.fillStyle = '#150028';
+    ctx.beginPath();
+    ctx.ellipse(x + w/2, y + h * 0.55, w * 0.42, h * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ff00d4';
+    ctx.stroke();
+    // spinning record
+    ctx.save();
+    ctx.translate(x + w/2, y + h * 0.55);
+    ctx.rotate(now / 200);
+    ctx.fillStyle = '#ffea00';
+    ctx.beginPath();
+    ctx.arc(0, 0, h * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(-h*0.05, -h*0.18, h*0.1, h*0.05);
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawEnemy(e, now) {
+    const cx = e.x + e.w/2;
+    const cy = e.y + e.h/2;
+    if (e.type === 'vinyl') {
+      ctx.shadowColor = '#b300ff';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#1a0030';
+      ctx.beginPath();
+      ctx.arc(cx, cy, e.w * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#b300ff';
+      ctx.lineWidth = 1;
+      for (let r = 4; r < e.w * 0.42; r += 3) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#ff00d4';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === 'cassette') {
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#001a22';
+      ctx.fillRect(e.x, e.y + 4, e.w, e.h - 8);
+      ctx.strokeStyle = '#00f0ff';
+      ctx.strokeRect(e.x, e.y + 4, e.w, e.h - 8);
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(cx - e.w * 0.22, cy, 4, 0, Math.PI * 2);
+      ctx.arc(cx + e.w * 0.22, cy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === 'headphones') {
+      ctx.shadowColor = '#ffea00';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = '#ffea00';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy + 3, e.w * 0.4, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#ffea00';
+      ctx.fillRect(cx - e.w * 0.45, cy, 6, 10);
+      ctx.fillRect(cx + e.w * 0.4 - 1, cy, 6, 10);
+    } else if (e.type === 'speaker') {
+      ctx.shadowColor = '#ff00d4';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#1a0010';
+      ctx.fillRect(e.x, e.y, e.w, e.h);
+      ctx.strokeStyle = '#ff00d4';
+      ctx.strokeRect(e.x, e.y, e.w, e.h);
+      const pulse = Math.sin(now / 100) * 0.3 + 0.7;
+      ctx.fillStyle = '#ff00d4';
+      ctx.beginPath();
+      ctx.arc(cx, cy, e.w * 0.28 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, e.w * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ---- Loop ----
+  function loop(now) {
+    if (!lastTime) lastTime = now;
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    if (alive && !paused) update(dt, now);
+    draw(now);
+    requestAnimationFrame(loop);
+  }
+
+  // ---- Input ----
+  document.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') keys.left = true;
+    else if (k === 'arrowright' || k === 'd') keys.right = true;
+    else if (k === ' ' || k === 'arrowup' || k === 'w') { keys.fire = true; e.preventDefault(); }
+    else if (k === 'p') paused = !paused;
+  });
+  document.addEventListener('keyup', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') keys.left = false;
+    else if (k === 'arrowright' || k === 'd') keys.right = false;
+    else if (k === ' ' || k === 'arrowup' || k === 'w') keys.fire = false;
+  });
+
+  function bindHold(el, prop) {
+    const set = (v) => () => { keys[prop] = v; };
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); set(true)(); }, {passive: false});
+    el.addEventListener('touchend',   (e) => { e.preventDefault(); set(false)(); }, {passive: false});
+    el.addEventListener('mousedown', set(true));
+    el.addEventListener('mouseup', set(false));
+    el.addEventListener('mouseleave', set(false));
+  }
+  bindHold(document.getElementById('tLeft'), 'left');
+  bindHold(document.getElementById('tRight'), 'right');
+  bindHold(document.getElementById('tFire'), 'fire');
+
+  // ---- Leaderboard ----
+  const KEY = 'dj_invaders_board';
+  function getBoard() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch { return []; }
+  }
+  function saveScore(name, score) {
+    const board = getBoard();
+    board.push({ name: name || 'ANON', score, date: Date.now() });
+    board.sort((a, b) => b.score - a.score);
+    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 10)));
+  }
+  function getHigh() {
+    const board = getBoard();
+    return board.length ? board[0].score : 0;
+  }
+  function renderBoard() {
+    const board = getBoard();
+    if (!board.length) { boardEl.innerHTML = '<li class="empty">No high scores yet — be the first.</li>'; return; }
+    boardEl.innerHTML = board.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.score}</b></li>`).join('');
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---- Start / restart ----
+  function startGame() {
+    audioCtx();
+    playerName = (nameInput.value || 'ANON').toUpperCase().trim().slice(0, 12);
+    startOverlay.classList.add('hidden');
+    overOverlay.classList.add('hidden');
+    reset();
+    lastTime = 0;
+    requestAnimationFrame(loop);
+  }
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', () => {
+    overOverlay.classList.add('hidden');
+    reset();
+    lastTime = 0;
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
+
+  // initial paint
+  resize();
+  renderBoard();
+  highEl.textContent = getHigh();
+})();
+</script>
+</body>
+</html>
