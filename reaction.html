@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>REACTION DROP — DJ Arcade</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --cyan: #00f0ff;
+    --magenta: #ff00d4;
+    --yellow: #ffea00;
+    --purple: #b300ff;
+    --ink: #e8e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: 'Courier New', monospace; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,234,0,0.1), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(255,0,212,0.15), transparent 60%),
+      var(--bg);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px; min-height: 100vh;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,234,0,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,212,0.05) 1px, transparent 1px);
+    background-size: 30px 30px; pointer-events: none;
+  }
+  header {
+    width: 100%; max-width: 900px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 4px 12px; z-index: 1;
+  }
+  .title { font-size: 1.3rem; letter-spacing: 0.3em; color: var(--yellow); text-shadow: 0 0 12px var(--yellow); }
+  .back { color: var(--cyan); text-decoration: none; text-shadow: 0 0 8px var(--cyan); font-size: 0.85rem; letter-spacing: 0.2em; }
+
+  .stage {
+    position: relative;
+    width: 100%; max-width: 900px;
+    flex: 1;
+    min-height: 480px;
+    border: 2px solid var(--yellow);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(255,234,0,0.3), inset 0 0 30px rgba(255,234,0,0.05);
+    overflow: hidden;
+    z-index: 1;
+    background: rgba(0,0,10,0.6);
+    display: flex; flex-direction: column;
+  }
+
+  .status {
+    text-align: center;
+    padding: 24px 12px;
+    font-size: clamp(1.5rem, 5vw, 2.4rem);
+    letter-spacing: 0.25em;
+    transition: all 0.2s;
+    flex: 0 0 auto;
+  }
+  .status.wait { color: var(--cyan); text-shadow: 0 0 18px var(--cyan); }
+  .status.drop {
+    color: var(--magenta); text-shadow: 0 0 30px var(--magenta), 0 0 60px var(--magenta);
+    animation: dropFlash 0.3s ease-in;
+  }
+  .status.idle { color: var(--ink); opacity: 0.7; }
+  @keyframes dropFlash {
+    0%   { transform: scale(0.8); opacity: 0; }
+    50%  { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .zones {
+    flex: 1;
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+  }
+  .zones.p1 { grid-template-columns: 1fr; }
+  .zones.p2 { grid-template-columns: 1fr 1fr; }
+  .zones.p3 { grid-template-columns: 1fr 1fr 1fr; }
+  .zones.p4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+  .zone {
+    position: relative;
+    border-radius: 8px;
+    border: 2px solid;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.1s;
+    overflow: hidden;
+    min-height: 110px;
+  }
+  .zone:active { transform: scale(0.98); }
+  .zone.cyan    { border-color: var(--cyan);    color: var(--cyan);    background: rgba(0,240,255,0.06); }
+  .zone.magenta { border-color: var(--magenta); color: var(--magenta); background: rgba(255,0,212,0.06); }
+  .zone.yellow  { border-color: var(--yellow);  color: var(--yellow);  background: rgba(255,234,0,0.06); }
+  .zone.purple  { border-color: var(--purple);  color: var(--purple);  background: rgba(179,0,255,0.06); }
+  .zone.armed   { box-shadow: 0 0 30px currentColor, inset 0 0 30px rgba(255,255,255,0.05); }
+  .zone.fired   { background: currentColor; color: #0a0a14; }
+  .zone.bust    { opacity: 0.35; border-style: dashed; }
+
+  .zone .name { font-size: 1.1rem; letter-spacing: 0.18em; text-shadow: 0 0 10px currentColor; margin-bottom: 4px; }
+  .zone .key  { font-size: 0.75rem; opacity: 0.7; letter-spacing: 0.2em; margin-bottom: 8px; }
+  .zone .stat { font-size: 0.95rem; letter-spacing: 0.1em; }
+  .zone .ms   { font-size: 1.6rem; font-weight: bold; margin-top: 4px; }
+  .zone .pts  { font-size: 1.2rem; opacity: 0.85; margin-top: 2px; }
+
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(5,5,15,0.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px; gap: 16px; z-index: 2;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--yellow), var(--magenta));
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(255,234,0,0.4);
+  }
+  .overlay p { opacity: 0.85; line-height: 1.6; max-width: 520px; text-align: center; }
+  .player-rows { display: flex; flex-direction: column; gap: 8px; max-width: 360px; width: 100%; }
+  .player-row { display: flex; align-items: center; gap: 8px; }
+  .player-row .swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+  .player-row .swatch.cyan    { background: var(--cyan); color: var(--cyan); }
+  .player-row .swatch.magenta { background: var(--magenta); color: var(--magenta); }
+  .player-row .swatch.yellow  { background: var(--yellow); color: var(--yellow); }
+  .player-row .swatch.purple  { background: var(--purple); color: var(--purple); }
+  .player-row input {
+    flex: 1;
+    background: rgba(0,0,0,0.6); border: 1px solid var(--ink); color: var(--ink);
+    padding: 8px 12px; border-radius: 4px; font-family: inherit; font-size: 0.95rem;
+    letter-spacing: 0.1em; outline: none;
+  }
+  .player-row input:focus { border-color: var(--yellow); box-shadow: 0 0 12px var(--yellow); }
+  .player-row .key-label { font-size: 0.75rem; opacity: 0.7; letter-spacing: 0.2em; min-width: 56px; text-align: right; }
+
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .count-buttons { display: flex; gap: 8px; }
+  .count-buttons button {
+    background: transparent; border: 1px solid var(--cyan); color: var(--cyan);
+    padding: 6px 14px; border-radius: 4px; font-family: inherit; cursor: pointer;
+    text-shadow: 0 0 6px var(--cyan); letter-spacing: 0.15em;
+  }
+  .count-buttons button.active { background: var(--cyan); color: #0a0a14; text-shadow: none; }
+
+  .btn {
+    padding: 12px 28px; background: transparent;
+    border: 2px solid var(--magenta); color: var(--magenta);
+    font-family: inherit; font-size: 1rem; letter-spacing: 0.2em;
+    cursor: pointer; border-radius: 4px;
+    text-shadow: 0 0 10px var(--magenta);
+    box-shadow: 0 0 20px rgba(255,0,212,0.3), inset 0 0 20px rgba(255,0,212,0.05);
+    transition: all 0.15s;
+  }
+  .btn:hover, .btn:active { background: rgba(255,0,212,0.15); transform: scale(1.04); }
+  .btn.small { padding: 8px 18px; font-size: 0.85rem; }
+
+  .results-table {
+    width: 100%; max-width: 480px;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .results-table th, .results-table td {
+    padding: 6px 12px; text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.9rem; letter-spacing: 0.1em;
+  }
+  .results-table th { color: var(--yellow); text-shadow: 0 0 6px var(--yellow); font-size: 0.78rem; }
+  .results-table tr.winner td { color: var(--yellow); text-shadow: 0 0 8px var(--yellow); }
+
+  .leaderboard {
+    margin-top: 8px; padding: 12px 20px;
+    border: 1px solid var(--purple); border-radius: 6px;
+    background: rgba(20,5,40,0.6);
+    width: 100%; max-width: 900px;
+  }
+  .leaderboard h3 {
+    color: var(--purple); text-shadow: 0 0 8px var(--purple);
+    margin-bottom: 8px; letter-spacing: 0.2em; font-size: 0.9rem;
+  }
+  .leaderboard ol { margin-left: 20px; font-size: 0.85rem; line-height: 1.7; }
+  .leaderboard li::marker { color: var(--yellow); }
+  .empty { opacity: 0.6; font-style: italic; font-size: 0.85rem; }
+
+  .controls-info {
+    text-align: center; margin-top: 12px;
+    font-size: 0.78rem; opacity: 0.6;
+    letter-spacing: 0.15em; z-index: 1;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <a class="back" href="index.html">&lt; BACK</a>
+    <div class="title">REACTION DROP</div>
+    <div style="width: 60px"></div>
+  </header>
+
+  <div class="stage">
+    <div class="status idle" id="status">PRESS START</div>
+    <div class="zones p2" id="zones"></div>
+
+    <div class="overlay" id="setup">
+      <h2>REACTION DROP</h2>
+      <p>Wait for THE DROP. First to slap their button wins the round. Tap before the drop and you bust. Best of 5.</p>
+      <div class="row">
+        <span style="opacity:0.7; letter-spacing:0.2em">PLAYERS:</span>
+        <div class="count-buttons" id="counts">
+          <button data-n="2" class="active">2</button>
+          <button data-n="3">3</button>
+          <button data-n="4">4</button>
+        </div>
+      </div>
+      <div class="player-rows" id="rows"></div>
+      <div class="row">
+        <span style="opacity:0.7; letter-spacing:0.2em">ROUNDS:</span>
+        <div class="count-buttons" id="roundCounts">
+          <button data-n="3">3</button>
+          <button data-n="5" class="active">5</button>
+          <button data-n="7">7</button>
+        </div>
+      </div>
+      <button class="btn" id="startBtn">DROP IN</button>
+    </div>
+
+    <div class="overlay hidden" id="results">
+      <h2 id="resultsTitle">WINNER</h2>
+      <table class="results-table" id="resultsTable"></table>
+      <div class="row">
+        <button class="btn small" id="rematchBtn">REMATCH</button>
+        <button class="btn small" id="newSetupBtn">NEW SETUP</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-info">// EACH PLAYER USES THEIR ASSIGNED KEY · TAP/CLICK ZONES ON TOUCH //</div>
+
+  <div class="leaderboard">
+    <h3>// REACTION HALL OF FAME (BEST AVG MS)</h3>
+    <ol id="board"></ol>
+  </div>
+
+<script>
+(() => {
+  const COLORS = ['cyan', 'magenta', 'yellow', 'purple'];
+  const KEYS = ['a', 'l', 'g', "'"]; // P1=A, P2=L, P3=G, P4=' (apostrophe)
+  const KEY_LABELS = ['A', 'L', 'G', "'"];
+
+  const setup = document.getElementById('setup');
+  const results = document.getElementById('results');
+  const status = document.getElementById('status');
+  const zones = document.getElementById('zones');
+  const startBtn = document.getElementById('startBtn');
+  const rematchBtn = document.getElementById('rematchBtn');
+  const newSetupBtn = document.getElementById('newSetupBtn');
+  const counts = document.getElementById('counts');
+  const roundCounts = document.getElementById('roundCounts');
+  const rows = document.getElementById('rows');
+  const resultsTable = document.getElementById('resultsTable');
+  const resultsTitle = document.getElementById('resultsTitle');
+  const boardEl = document.getElementById('board');
+
+  let nPlayers = 2, nRounds = 5;
+  let players = [];
+  let round = 0;
+  let phase = 'idle'; // idle | wait | drop | resolved
+  let dropAt = 0;     // performance.now() of "DROP!"
+  let armTimeout = null;
+
+  // ---- Audio ----
+  let audio;
+  function audioCtx() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function tone(freq, dur = 0.12, type = 'square', gain = 0.18) {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.value = 0;
+    g.gain.linearRampToValueAtTime(gain, a.currentTime + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    osc.connect(g).connect(a.destination);
+    osc.start(); osc.stop(a.currentTime + dur + 0.02);
+  }
+  function tickSound() { tone(660, 0.06, 'triangle', 0.1); }
+  function dropSound() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, a.currentTime + 0.15);
+    g.gain.setValueAtTime(0.3, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.4);
+    osc.connect(g).connect(a.destination);
+    osc.start(); osc.stop(a.currentTime + 0.42);
+    // kick layer
+    const k = a.createOscillator();
+    const kg = a.createGain();
+    k.type = 'sine';
+    k.frequency.setValueAtTime(140, a.currentTime);
+    k.frequency.exponentialRampToValueAtTime(40, a.currentTime + 0.15);
+    kg.gain.setValueAtTime(0.4, a.currentTime);
+    kg.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.2);
+    k.connect(kg).connect(a.destination);
+    k.start(); k.stop(a.currentTime + 0.22);
+  }
+  function bustSound() {
+    const a = audioCtx();
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(300, a.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, a.currentTime + 0.4);
+    g.gain.setValueAtTime(0.2, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.45);
+    osc.connect(g).connect(a.destination);
+    osc.start(); osc.stop(a.currentTime + 0.5);
+  }
+  function winSound() {
+    [523, 659, 784, 1047].forEach((f, i) =>
+      setTimeout(() => tone(f, 0.2, 'triangle', 0.15), i * 100));
+  }
+
+  // ---- Setup UI ----
+  function buildRows() {
+    rows.innerHTML = '';
+    for (let i = 0; i < nPlayers; i++) {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      row.innerHTML = `
+        <div class="swatch ${COLORS[i]}"></div>
+        <input type="text" maxlength="10" placeholder="DJ ${i+1}" value="${players[i]?.name || ''}" data-idx="${i}" />
+        <div class="key-label">[${KEY_LABELS[i]}]</div>
+      `;
+      rows.appendChild(row);
+    }
+  }
+  counts.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      counts.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      nPlayers = parseInt(btn.dataset.n);
+      buildRows();
+    });
+  });
+  roundCounts.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      roundCounts.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      nRounds = parseInt(btn.dataset.n);
+    });
+  });
+  buildRows();
+
+  // ---- Zones ----
+  function renderZones() {
+    zones.className = 'zones p' + nPlayers;
+    zones.innerHTML = '';
+    players.forEach((p, i) => {
+      const z = document.createElement('div');
+      z.className = 'zone ' + COLORS[i];
+      z.dataset.idx = i;
+      z.innerHTML = `
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="key">[${KEY_LABELS[i]}]</div>
+        <div class="stat">SCORE <span class="pts">${p.score}</span></div>
+        <div class="ms" data-ms="">--</div>
+      `;
+      z.addEventListener('mousedown', () => playerTap(i));
+      z.addEventListener('touchstart', (e) => { e.preventDefault(); playerTap(i); }, {passive: false});
+      zones.appendChild(z);
+    });
+  }
+
+  function startGame() {
+    audioCtx();
+    players = [];
+    const inputs = rows.querySelectorAll('input');
+    for (let i = 0; i < nPlayers; i++) {
+      const name = (inputs[i].value || `DJ ${i+1}`).toUpperCase().trim().slice(0, 10);
+      players.push({ name, score: 0, times: [], busts: 0, lastMs: null, busted: false });
+    }
+    round = 0;
+    setup.classList.add('hidden');
+    results.classList.add('hidden');
+    renderZones();
+    nextRound();
+  }
+
+  function nextRound() {
+    round++;
+    if (round > nRounds) return endGame();
+    players.forEach(p => { p.busted = false; p.lastMs = null; });
+    refreshZones('idle');
+    setStatus(`ROUND ${round}/${nRounds} — GET READY`, 'wait');
+    phase = 'idle';
+    setTimeout(() => beginArm(), 1500);
+  }
+
+  function beginArm() {
+    setStatus('WAIT FOR THE DROP...', 'wait');
+    phase = 'wait';
+    armZones();
+    const delay = 1800 + Math.random() * 4500;
+    armTimeout = setTimeout(() => {
+      phase = 'drop';
+      dropAt = performance.now();
+      setStatus('DROP!', 'drop');
+      dropSound();
+      // visual: flash zones to "fired" but only the armed ones
+      players.forEach((p, i) => {
+        if (!p.busted) {
+          const z = zones.querySelector(`[data-idx="${i}"]`);
+          if (z) z.classList.remove('armed');
+        }
+      });
+      // failsafe: if nobody hits in 2s, end round
+      armTimeout = setTimeout(() => resolveRound(), 2000);
+    }, delay);
+  }
+
+  function armZones() {
+    players.forEach((p, i) => {
+      const z = zones.querySelector(`[data-idx="${i}"]`);
+      if (!z) return;
+      z.classList.remove('fired', 'bust');
+      if (p.busted) z.classList.add('bust');
+      else z.classList.add('armed');
+    });
+  }
+
+  function refreshZones(mode) {
+    players.forEach((p, i) => {
+      const z = zones.querySelector(`[data-idx="${i}"]`);
+      if (!z) return;
+      z.classList.remove('armed', 'fired', 'bust');
+      const ptsEl = z.querySelector('.pts');
+      const msEl = z.querySelector('.ms');
+      if (ptsEl) ptsEl.textContent = p.score;
+      if (msEl) msEl.textContent = p.lastMs == null ? '--' : (p.busted ? 'BUST' : p.lastMs + ' MS');
+    });
+  }
+
+  function playerTap(idx) {
+    if (phase === 'idle' || phase === 'resolved') return;
+    const p = players[idx];
+    if (!p || p.busted || p.lastMs != null) return;
+
+    if (phase === 'wait') {
+      // false start
+      p.busted = true;
+      p.busts++;
+      bustSound();
+      const z = zones.querySelector(`[data-idx="${idx}"]`);
+      if (z) {
+        z.classList.remove('armed');
+        z.classList.add('bust');
+        const msEl = z.querySelector('.ms');
+        if (msEl) msEl.textContent = 'BUST';
+      }
+      // if everyone is busted, end the round
+      if (players.every(x => x.busted)) {
+        clearTimeout(armTimeout);
+        setTimeout(() => resolveRound(), 600);
+      }
+      return;
+    }
+
+    if (phase === 'drop') {
+      const ms = Math.round(performance.now() - dropAt);
+      p.lastMs = ms;
+      p.times.push(ms);
+      const z = zones.querySelector(`[data-idx="${idx}"]`);
+      if (z) {
+        z.classList.remove('armed');
+        z.classList.add('fired');
+        const msEl = z.querySelector('.ms');
+        if (msEl) msEl.textContent = ms + ' MS';
+      }
+      tickSound();
+      // if all non-bust players have responded, resolve
+      const pending = players.filter(x => !x.busted && x.lastMs == null);
+      if (pending.length === 0) {
+        clearTimeout(armTimeout);
+        setTimeout(() => resolveRound(), 700);
+      }
+    }
+  }
+
+  function resolveRound() {
+    phase = 'resolved';
+    // determine winner: lowest ms among non-busted who responded
+    const responders = players.filter(p => !p.busted && p.lastMs != null);
+    if (responders.length) {
+      const best = Math.min(...responders.map(p => p.lastMs));
+      const winners = responders.filter(p => p.lastMs === best);
+      winners.forEach(w => w.score += winners.length === 1 ? 2 : 1);
+      setStatus(winners.length === 1
+        ? `${winners[0].name} +${winners.length === 1 ? 2 : 1}`
+        : 'TIE!', 'wait');
+      tone(880, 0.18, 'triangle', 0.12);
+    } else {
+      setStatus('NO WINNER', 'idle');
+    }
+    refreshZones('round');
+    setTimeout(() => nextRound(), 1800);
+  }
+
+  function endGame() {
+    phase = 'idle';
+    setStatus('GAME OVER', 'idle');
+    const sorted = [...players].sort((a, b) => b.score - a.score);
+    const top = sorted[0];
+    const tied = sorted.filter(p => p.score === top.score);
+    resultsTitle.textContent = tied.length === 1 ? `${top.name} WINS` : 'TIE GAME';
+    let html = '<tr><th>#</th><th>DJ</th><th>SCORE</th><th>BEST</th><th>AVG</th></tr>';
+    sorted.forEach((p, i) => {
+      const best = p.times.length ? Math.min(...p.times) : '--';
+      const avg = p.times.length ? Math.round(p.times.reduce((a,b)=>a+b,0) / p.times.length) : '--';
+      const isWin = p.score === top.score;
+      html += `<tr class="${isWin ? 'winner' : ''}"><td>${i+1}</td><td>${escapeHtml(p.name)}</td><td>${p.score}</td><td>${best}${best!=='--' ? ' MS' : ''}</td><td>${avg}${avg!=='--' ? ' MS' : ''}</td></tr>`;
+    });
+    resultsTable.innerHTML = html;
+    // save best avg per player
+    players.forEach(p => {
+      if (p.times.length) {
+        const avg = Math.round(p.times.reduce((a,b)=>a+b,0) / p.times.length);
+        saveScore(p.name, avg, p.times.length);
+      }
+    });
+    renderBoard();
+    winSound();
+    results.classList.remove('hidden');
+  }
+
+  function setStatus(text, cls) {
+    status.textContent = text;
+    status.className = 'status ' + cls;
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const k = e.key.toLowerCase();
+    const idx = KEYS.indexOf(k);
+    if (idx >= 0 && idx < nPlayers && phase !== 'idle') {
+      e.preventDefault();
+      playerTap(idx);
+    }
+  });
+
+  // ---- Buttons ----
+  startBtn.addEventListener('click', startGame);
+  rematchBtn.addEventListener('click', () => {
+    players.forEach(p => { p.score = 0; p.times = []; p.busts = 0; p.lastMs = null; p.busted = false; });
+    round = 0;
+    results.classList.add('hidden');
+    renderZones();
+    nextRound();
+  });
+  newSetupBtn.addEventListener('click', () => {
+    results.classList.add('hidden');
+    setup.classList.remove('hidden');
+    setStatus('PRESS START', 'idle');
+    zones.innerHTML = '';
+  });
+
+  // ---- Leaderboard (best avg MS, lower is better) ----
+  const KEY = 'dj_reaction_board';
+  function getBoard() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch { return []; }
+  }
+  function saveScore(name, avgMs, rounds) {
+    const board = getBoard();
+    board.push({ name: name || 'ANON', avgMs, rounds, date: Date.now() });
+    board.sort((a, b) => a.avgMs - b.avgMs);
+    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 10)));
+  }
+  function renderBoard() {
+    const board = getBoard();
+    if (!board.length) { boardEl.innerHTML = '<li class="empty">No reactions logged yet.</li>'; return; }
+    boardEl.innerHTML = board.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.avgMs} MS</b> <span style="opacity:0.6">(${e.rounds} rounds)</span></li>`).join('');
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  renderBoard();
+})();
+</script>
+</body>
+</html>
