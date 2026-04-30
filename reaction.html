@@ -245,8 +245,9 @@
   <div class="controls-info">// EACH PLAYER USES THEIR ASSIGNED KEY · TAP/CLICK ZONES ON TOUCH //</div>
 
   <div class="leaderboard">
-    <h3>// REACTION HALL OF FAME (BEST AVG MS)</h3>
+    <h3>// HALL OF FAME (BEST AVG MS) <span id="monthTag" style="font-size:0.7rem; opacity:0.75; color:var(--yellow); text-shadow:0 0 6px var(--yellow); letter-spacing:0.15em; font-weight:normal;"></span></h3>
     <ol id="board"></ol>
+    <div style="font-size:0.7rem; opacity:0.5; margin-top:6px; letter-spacing:0.1em;">Resets monthly. History archived in browser.</div>
   </div>
 
 <script>
@@ -579,22 +580,31 @@
     zones.innerHTML = '';
   });
 
-  // ---- Leaderboard (best avg MS, lower is better) ----
+  // ---- Leaderboard (best avg MS, lower is better; monthly reset) ----
   const KEY = 'dj_reaction_board';
+  const monthTag = document.getElementById('monthTag');
+  function getMonthKey(d = new Date()) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
   function getBoard() {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; }
     catch { return []; }
   }
   function saveScore(name, avgMs, rounds) {
     const board = getBoard();
-    board.push({ name: name || 'ANON', avgMs, rounds, date: Date.now() });
+    board.push({ name: name || 'ANON', avgMs, rounds, date: Date.now(), month: getMonthKey() });
     board.sort((a, b) => a.avgMs - b.avgMs);
-    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 10)));
+    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 200)));
+  }
+  function currentMonthEntries() {
+    const m = getMonthKey();
+    return getBoard().filter(e => (e.month || getMonthKey(new Date(e.date))) === m);
   }
   function renderBoard() {
-    const board = getBoard();
-    if (!board.length) { boardEl.innerHTML = '<li class="empty">No reactions logged yet.</li>'; return; }
-    boardEl.innerHTML = board.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.avgMs} MS</b> <span style="opacity:0.6">(${e.rounds} rounds)</span></li>`).join('');
+    monthTag.textContent = '· ' + new Date().toLocaleString('en', {month:'short', year:'numeric'}).toUpperCase();
+    const entries = currentMonthEntries().slice(0, 10);
+    if (!entries.length) { boardEl.innerHTML = '<li class="empty">No reactions logged this month.</li>'; return; }
+    boardEl.innerHTML = entries.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.avgMs} MS</b> <span style="opacity:0.6">(${e.rounds} rounds)</span></li>`).join('');
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 

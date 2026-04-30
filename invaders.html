@@ -247,8 +247,9 @@
   <div class="controls-info">// LEFT/RIGHT or A/D to move · SPACE to fire //</div>
 
   <div class="leaderboard">
-    <h3>// TOP DJS</h3>
+    <h3>// TOP DJS <span class="month-tag" id="monthTag" style="font-size:0.7rem; opacity:0.75; color:var(--yellow); text-shadow:0 0 6px var(--yellow); letter-spacing:0.15em; font-weight:normal;"></span></h3>
     <ol id="board"></ol>
+    <div style="font-size:0.7rem; opacity:0.5; margin-top:6px; letter-spacing:0.1em;">Resets monthly. History archived in browser.</div>
   </div>
 
 <script>
@@ -753,26 +754,35 @@
   bindHold(document.getElementById('tRight'), 'right');
   bindHold(document.getElementById('tFire'), 'fire');
 
-  // ---- Leaderboard ----
+  // ---- Leaderboard (monthly reset) ----
   const KEY = 'dj_invaders_board';
+  const monthTag = document.getElementById('monthTag');
+  function getMonthKey(d = new Date()) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
   function getBoard() {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; }
     catch { return []; }
   }
   function saveScore(name, score) {
     const board = getBoard();
-    board.push({ name: name || 'ANON', score, date: Date.now() });
+    board.push({ name: name || 'ANON', score, date: Date.now(), month: getMonthKey() });
     board.sort((a, b) => b.score - a.score);
-    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 10)));
+    localStorage.setItem(KEY, JSON.stringify(board.slice(0, 200)));
+  }
+  function currentMonthEntries() {
+    const m = getMonthKey();
+    return getBoard().filter(e => (e.month || getMonthKey(new Date(e.date))) === m);
   }
   function getHigh() {
-    const board = getBoard();
-    return board.length ? board[0].score : 0;
+    const e = currentMonthEntries();
+    return e.length ? e[0].score : 0;
   }
   function renderBoard() {
-    const board = getBoard();
-    if (!board.length) { boardEl.innerHTML = '<li class="empty">No high scores yet — be the first.</li>'; return; }
-    boardEl.innerHTML = board.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.score}</b></li>`).join('');
+    monthTag.textContent = '· ' + new Date().toLocaleString('en', {month:'short', year:'numeric'}).toUpperCase();
+    const entries = currentMonthEntries().slice(0, 10);
+    if (!entries.length) { boardEl.innerHTML = '<li class="empty">No scores this month — set the pace.</li>'; return; }
+    boardEl.innerHTML = entries.map(e => `<li>${escapeHtml(e.name)} — <b style="color:var(--yellow)">${e.score}</b></li>`).join('');
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
