@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LIVE SCOREBOARD — DJ Arcade</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --cyan: #00f0ff;
+    --magenta: #ff00d4;
+    --yellow: #ffea00;
+    --purple: #b300ff;
+    --ink: #e8e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: 'Courier New', monospace; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(0,240,255,0.15), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(255,0,212,0.15), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(179,0,255,0.08), transparent 70%),
+      var(--bg);
+    min-height: 100vh;
+    padding: 24px;
+    display: flex; flex-direction: column;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,240,255,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,212,0.07) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none; z-index: 0;
+    animation: gridShift 18s linear infinite;
+  }
+  @keyframes gridShift { to { background-position: 50px 50px, -50px 50px; } }
+
+  header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 18px; z-index: 1;
+    border-bottom: 1px solid rgba(255,0,212,0.4);
+    margin-bottom: 24px;
+  }
+  .back { color: var(--cyan); text-decoration: none; text-shadow: 0 0 10px var(--cyan); letter-spacing: 0.25em; font-size: 0.9rem; }
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 3rem);
+    letter-spacing: 0.3em;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--yellow), var(--cyan));
+    background-size: 300% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: hue 5s linear infinite;
+  }
+  @keyframes hue { to { background-position: 300% center; } }
+  .meta {
+    text-align: right;
+    font-size: 0.85rem; letter-spacing: 0.2em; opacity: 0.85;
+  }
+  .meta .month { color: var(--yellow); text-shadow: 0 0 10px var(--yellow); font-size: 1rem; }
+  .meta .countdown { color: var(--magenta); text-shadow: 0 0 10px var(--magenta); margin-top: 4px; }
+
+  .columns {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    z-index: 1;
+  }
+  .col {
+    border: 2px solid var(--cyan);
+    border-radius: 10px;
+    padding: 20px;
+    background: rgba(0,5,20,0.65);
+    box-shadow: 0 0 30px rgba(0,240,255,0.25), inset 0 0 30px rgba(0,240,255,0.04);
+    display: flex; flex-direction: column;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .col.magenta { border-color: var(--magenta); box-shadow: 0 0 30px rgba(255,0,212,0.25), inset 0 0 30px rgba(255,0,212,0.04); }
+  .col.yellow  { border-color: var(--yellow);  box-shadow: 0 0 30px rgba(255,234,0,0.25), inset 0 0 30px rgba(255,234,0,0.04); }
+  .col.purple  { border-color: var(--purple);  box-shadow: 0 0 30px rgba(179,0,255,0.25), inset 0 0 30px rgba(179,0,255,0.04); }
+
+  .col h2 {
+    font-size: 1.4rem;
+    letter-spacing: 0.2em;
+    color: var(--cyan); text-shadow: 0 0 14px var(--cyan);
+    margin-bottom: 4px;
+  }
+  .col.magenta h2 { color: var(--magenta); text-shadow: 0 0 14px var(--magenta); }
+  .col.yellow h2  { color: var(--yellow);  text-shadow: 0 0 14px var(--yellow); }
+  .col.purple h2  { color: var(--purple);  text-shadow: 0 0 14px var(--purple); }
+
+  .col .sub { font-size: 0.7rem; opacity: 0.6; letter-spacing: 0.2em; margin-bottom: 14px; }
+
+  ol.list {
+    list-style: none;
+    counter-reset: rank;
+    flex: 1;
+    overflow: hidden;
+  }
+  ol.list li {
+    counter-increment: rank;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 4px;
+    border-bottom: 1px dashed rgba(255,255,255,0.1);
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    transition: transform 0.3s, opacity 0.3s;
+  }
+  ol.list li::before {
+    content: counter(rank, decimal-leading-zero);
+    color: var(--yellow);
+    text-shadow: 0 0 8px var(--yellow);
+    font-weight: bold;
+    width: 32px;
+    flex-shrink: 0;
+  }
+  ol.list li.top1::before { color: var(--magenta); text-shadow: 0 0 14px var(--magenta); animation: pulse1 1.4s ease-in-out infinite; }
+  @keyframes pulse1 { 50% { transform: scale(1.15); } }
+  ol.list li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  ol.list li .sc {
+    color: var(--yellow);
+    text-shadow: 0 0 8px var(--yellow);
+    font-weight: bold;
+    font-size: 1.15rem;
+  }
+  ol.list .empty { opacity: 0.4; font-style: italic; padding: 12px 4px; font-size: 0.95rem; }
+  ol.list li.flash { animation: flashIn 0.6s ease-out; }
+  @keyframes flashIn {
+    0% { background: rgba(255,234,0,0.3); transform: translateX(-10px); opacity: 0; }
+    100% { background: transparent; transform: translateX(0); opacity: 1; }
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 0.75rem;
+    opacity: 0.45;
+    letter-spacing: 0.25em;
+    z-index: 1;
+  }
+  .live-dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--magenta);
+    box-shadow: 0 0 12px var(--magenta);
+    animation: blink 1.4s ease-in-out infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes blink { 50% { opacity: 0.25; } }
+</style>
+</head>
+<body>
+  <header>
+    <a class="back" href="index.html">&lt; BACK</a>
+    <h1>LIVE SCOREBOARD</h1>
+    <div class="meta">
+      <div class="month" id="monthLabel">—</div>
+      <div class="countdown" id="countdown">—</div>
+    </div>
+  </header>
+
+  <div class="columns" id="columns"></div>
+
+  <div class="footer">
+    <span class="live-dot"></span>LIVE · AUTO-REFRESH · MONTHLY RESET
+  </div>
+
+<script>
+(() => {
+  // To enable a remote shared scoreboard later: set SYNC_URL to a JSON
+  // endpoint that returns { snake, invaders, reaction, chess } arrays.
+  // For now, scores are pulled from this device's localStorage.
+  const SYNC_URL = null;
+
+  const GAMES = [
+    { key: 'dj_snake_board',    label: 'VINYL SNAKE',    sub: 'HIGHEST SCORE',         theme: 'cyan',    metric: 'score', sortDir: 'desc', suffix: '' },
+    { key: 'dj_invaders_board', label: 'BASS INVADERS',  sub: 'HIGHEST SCORE',         theme: 'magenta', metric: 'score', sortDir: 'desc', suffix: '' },
+    { key: 'dj_reaction_board', label: 'REACTION DROP',  sub: 'BEST AVG REACTION (MS)', theme: 'yellow',  metric: 'avgMs', sortDir: 'asc',  suffix: ' ms' },
+    { key: 'dj_chess_board',    label: 'TURNTABLE CHESS', sub: 'WINS THIS MONTH',       theme: 'purple',  metric: 'wins',  sortDir: 'desc', suffix: '' }
+  ];
+
+  const columnsEl = document.getElementById('columns');
+  const monthLabel = document.getElementById('monthLabel');
+  const countdownEl = document.getElementById('countdown');
+
+  function getMonthKey(d = new Date()) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function loadBoard(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
+    catch { return []; }
+  }
+
+  function currentMonth(entries) {
+    const m = getMonthKey();
+    return entries.filter(e => (e.month || getMonthKey(new Date(e.date || 0))) === m);
+  }
+
+  function buildColumn(g) {
+    const col = document.createElement('div');
+    col.className = 'col ' + g.theme;
+    col.dataset.key = g.key;
+    col.innerHTML = `
+      <h2>${g.label}</h2>
+      <div class="sub">${g.sub}</div>
+      <ol class="list" data-list></ol>
+    `;
+    return col;
+  }
+
+  GAMES.forEach(g => columnsEl.appendChild(buildColumn(g)));
+
+  let lastSnapshot = {};
+
+  function renderColumn(col, g) {
+    const list = col.querySelector('[data-list]');
+    let entries = currentMonth(loadBoard(g.key));
+    entries.sort((a, b) => g.sortDir === 'asc'
+      ? (a[g.metric] - b[g.metric])
+      : (b[g.metric] - a[g.metric]));
+    const top = entries.slice(0, 5);
+
+    const sig = top.map(e => `${e.name}:${e[g.metric]}`).join('|');
+    const prevSig = lastSnapshot[g.key];
+    const changed = prevSig !== undefined && prevSig !== sig;
+    lastSnapshot[g.key] = sig;
+
+    if (!top.length) {
+      list.innerHTML = '<li class="empty">— no scores yet this month —</li>';
+      return;
+    }
+
+    list.innerHTML = top.map((e, i) => `
+      <li class="${i === 0 ? 'top1' : ''} ${changed ? 'flash' : ''}">
+        <span class="nm">${escapeHtml(e.name || 'ANON')}</span>
+        <span class="sc">${e[g.metric]}${g.suffix}</span>
+      </li>
+    `).join('');
+  }
+
+  function render() {
+    const cols = columnsEl.querySelectorAll('.col');
+    cols.forEach(col => {
+      const g = GAMES.find(x => x.key === col.dataset.key);
+      if (g) renderColumn(col, g);
+    });
+
+    // month label
+    monthLabel.textContent = new Date().toLocaleString('en', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    // countdown to next month
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+    const diff = nextMonth - now;
+    const days = Math.floor(diff / 86400000);
+    const hrs = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    countdownEl.textContent = `RESETS IN ${days}D ${hrs}H ${mins}M`;
+  }
+
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  render();
+  setInterval(render, 1500);
+
+  // Re-render when storage changes (other tabs writing scores)
+  window.addEventListener('storage', render);
+})();
+</script>
+</body>
+</html>
